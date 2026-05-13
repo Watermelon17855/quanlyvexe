@@ -36,7 +36,7 @@ exports.getBookedSeats = async (req, res) => {
     const { id } = req.params;
     try {
         const [rows] = await pool.query(
-            'SELECT seat_number FROM bookings WHERE trip_id = ? AND status != "cancelled"',
+            "SELECT seat_number FROM bookings WHERE trip_id = ? AND status != 'cancelled'",
             [id]
         );
         res.json(rows.map(row => row.seat_number));
