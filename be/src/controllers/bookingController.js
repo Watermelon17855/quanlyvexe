@@ -3,23 +3,23 @@ const pool = require('../config/db');
 exports.createBooking = async (req, res) => {
     const { trip_id, customer_name, customer_phone, seat_number } = req.body;
 
-    // Kiểm tra dữ liệu đầu vào cơ bản
     if (!trip_id || !customer_name || !customer_phone || !seat_number) {
         return res.status(400).json({ error: "Vui lòng nhập đầy đủ thông tin khách hàng và số ghế" });
     }
 
     try {
         const [result] = await pool.query(
-            'INSERT INTO bookings (trip_id, customer_name, customer_phone, seat_number) VALUES (?, ?, ?, ?)',
-            [trip_id, customer_name, customer_phone, seat_number]
+            // THÊM cột status và gán giá trị 'pending' trực tiếp ở đây
+            'INSERT INTO bookings (trip_id, customer_name, customer_phone, seat_number, status) VALUES (?, ?, ?, ?, ?)',
+            [trip_id, customer_name, customer_phone, seat_number, 'pending']
         );
 
         res.status(201).json({
-            message: "Đặt vé thành công",
-            bookingId: result.insertId
+            message: "Đặt vé thành công, vui lòng thanh toán để xác nhận",
+            bookingId: result.insertId,
+            status: 'pending'
         });
     } catch (err) {
-        // Bắt lỗi Unique Constraint (trùng trip_id và seat_number)
         if (err.code === 'ER_DUP_ENTRY') {
             return res.status(400).json({ error: "Ghế này đã có người đặt, vui lòng chọn ghế khác" });
         }
