@@ -3,85 +3,58 @@ const pool = require('../config/db');
 exports.sepayWebhook = async (req, res) => {
     const data = req.body;
 
-    console.log("📩 Nhận Webhook từ SePay:");
-    console.log(data);
+    console.log("📩 Nhận Webhook từ SePay:", data);
 
     try {
-        const content = (data.content || "").toUpperCase().trim();
-        const amount = Number(data.transferAmount || 0);
+        // 1. Kiểm tra an toàn dữ liệu đầu vào
+        if (!data || !data.content) {
+            return res.status(200).json({ success: false, message: 'Dữ liệu trống' });
+        }
 
-        console.log("📌 Content:", content);
-        console.log("💰 Amount:", amount);
+        const content = data.content.toUpperCase().trim();
 
-        // Hỗ trợ:
-        // VEXE109A01
-        // VEXE109A01A02
-        // vexe109a01
-        const match = content.match(/VEXE(\d+)([A-Z]\d+)/);
-
-        console.log("🔍 Match:", match);
+        // 2. Regex linh hoạt hơn (dùng \s* để chấp nhận có hoặc không có dấu cách)
+        const match = content.match(/VEXE\s*(\d+)\s*([A-A|B-B]\d+)/);
 
         if (!match) {
-            console.log("❌ Không match được mã thanh toán");
-            return res.status(200).json({
-                success: false,
-                message: 'Không đúng cú pháp thanh toán'
-            });
+            console.log("❌ Không match được mã:", content);
+            return res.status(200).json({ success: false, message: 'Sai cú pháp' });
         }
 
-        const tripId = match[1];
-        const seatNumber = match[2];
+        // Ép kiểu ID về Number để DB dễ so sánh
+        const tripId = Number(match[1]);
+        const seatNumber = match[2].trim();
 
-        console.log("🚌 Trip ID:", tripId);
-        console.log("💺 Seat:", seatNumber);
+        console.log(`🔍 Đang tìm: Chuyến ${tripId}, Ghế ${seatNumber}`);
 
-        // Tìm booking pending
+        // 3. Tìm booking với log chi tiết hơn
         const [bookingRows] = await pool.query(
-            `SELECT * FROM bookings
-             WHERE trip_id = ?
-             AND seat_number = ?
-             AND status = 'pending'`,
+            `SELECT id, trip_id, seat_number, status FROM bookings 
+             WHERE trip_id = ? AND seat_number = ? AND status = 'pending'`,
             [tripId, seatNumber]
         );
-
-        console.log("📄 Booking tìm được:", bookingRows);
 
         if (bookingRows.length === 0) {
-            console.log("❌ Không tìm thấy booking pending");
-            return res.status(200).json({
-                success: false,
-                message: 'Không tìm thấy booking pending'
-            });
+            // Log này cực quan trọng để ông debug
+            console.log(`❌ Thất bại: Không có bản ghi PENDING nào khớp cho Chuyến ${tripId} Ghế ${seatNumber}`);
+            return res.status(200).json({ success: false, message: 'Booking không tồn tại hoặc đã xác nhận' });
         }
 
-        // Update booking
+        // 4. Update
         const [updateResult] = await pool.query(
-            `UPDATE bookings
-             SET status = 'confirmed'
-             WHERE trip_id = ?
-             AND seat_number = ?
-             AND status = 'pending'`,
-            [tripId, seatNumber]
+            `UPDATE bookings SET status = 'confirmed' WHERE id = ?`,
+            [bookingRows[0].id] // Update theo ID là chắc cú nhất
         );
 
-        console.log("📝 Update Result:", updateResult);
-
         if (updateResult.affectedRows > 0) {
-            console.log(`✅ Xác nhận thành công ghế ${seatNumber} chuyến ${tripId}`);
-        } else {
-            console.log("❌ Update thất bại");
+            console.log(`✅ THÀNH CÔNG: Ghế ${seatNumber} chuyến ${tripId} đã được duyệt!`);
+            return res.status(200).json({ success: true });
         }
 
-        return res.status(200).json({
-            success: true
-        });
+        return res.status(200).json({ success: false, message: 'Update thất bại' });
 
     } catch (err) {
-        console.error("❌ Lỗi Webhook:", err);
-
-        return res.status(500).json({
-            success: false,
-            message: 'Server Error'
-        });
+        console.error("❌ Lỗi hệ thống Webhook:", err.message);
+        return res.status(500).json({ success: false });
     }
 };
