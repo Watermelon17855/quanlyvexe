@@ -94,7 +94,7 @@ const CheckoutPage = () => {
                     {/* THẺ QR SEPAY CỦA ÔNG ĐÂY */}
                     <div className="bg-gray-50 p-6 rounded-[2.5rem] border border-gray-100 mb-8 relative group" style={{ background: '#fff', padding: '20px', borderRadius: '20px' }}>
                         <img
-                            src={`https://qr.sepay.vn/img?acc=0388100173&bank=VPBank&amount=${totalPrice}&des=${orderCode}`}
+                            src={`https://qr.sepay.vn/img?acc=104876586342&bank=VietinBank&amount=${totalPrice}&des=${orderCode}`}
                             alt="QR Thanh toán"
                             style={{ width: '100%', height: 'auto', display: 'block' }}
                         />
