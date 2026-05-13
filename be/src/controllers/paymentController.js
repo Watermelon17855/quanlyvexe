@@ -6,55 +6,54 @@ exports.sepayWebhook = async (req, res) => {
     console.log("📩 Nhận Webhook từ SePay:", data);
 
     try {
-        // 1. Kiểm tra an toàn dữ liệu đầu vào
         if (!data || !data.content) {
             return res.status(200).json({ success: false, message: 'Dữ liệu trống' });
         }
 
         const content = data.content.toUpperCase().trim();
 
-        // 2. Regex linh hoạt hơn (dùng \s* để chấp nhận có hoặc không có dấu cách)
-        const match = content.match(/VEXE\s*(\d+)\s*([A-A|B-B]\d+)/);
+        // Regex bóc tách: lấy ID chuyến xe và toàn bộ chuỗi ghế phía sau
+        // Ví dụ: "ND VEXE107A08A09" -> tripId: 107, seatString: A08A09
+        const match = content.match(/VEXE\s*(\d+)\s*([A-Z0-9]+)/);
 
         if (!match) {
-            console.log("❌ Không match được mã:", content);
-            return res.status(200).json({ success: false, message: 'Sai cú pháp' });
+            console.log("❌ Không khớp cú pháp VEXE:", content);
+            return res.status(200).json({ success: false });
         }
 
-        // Ép kiểu ID về Number để DB dễ so sánh
         const tripId = Number(match[1]);
-        const seatNumber = match[2].trim();
+        const seatString = match[2]; // Chuỗi chứa các ghế như A08A09...
 
-        console.log(`🔍 Đang tìm: Chuyến ${tripId}, Ghế ${seatNumber}`);
+        // Tách chuỗi ghế thành mảng (Cứ chữ cái A hoặc B là bắt đầu ghế mới)
+        const seats = seatString.match(/[A-Z]\d+/g);
 
-        // 3. Tìm booking với log chi tiết hơn
-        const [bookingRows] = await pool.query(
-            `SELECT id, trip_id, seat_number, status FROM bookings 
-             WHERE trip_id = ? AND seat_number = ? AND status = 'pending'`,
-            [tripId, seatNumber]
-        );
-
-        if (bookingRows.length === 0) {
-            // Log này cực quan trọng để ông debug
-            console.log(`❌ Thất bại: Không có bản ghi PENDING nào khớp cho Chuyến ${tripId} Ghế ${seatNumber}`);
-            return res.status(200).json({ success: false, message: 'Booking không tồn tại hoặc đã xác nhận' });
+        if (!seats || seats.length === 0) {
+            console.log("❌ Không tìm thấy mã ghế trong nội dung");
+            return res.status(200).json({ success: false });
         }
 
-        // 4. Update
+        console.log(`🔍 Đang xử lý: Chuyến ${tripId}, Danh sách ghế:`, seats);
+
+        // Update tất cả các ghế có trong nội dung chuyển khoản
         const [updateResult] = await pool.query(
-            `UPDATE bookings SET status = 'confirmed' WHERE id = ?`,
-            [bookingRows[0].id] // Update theo ID là chắc cú nhất
+            `UPDATE bookings 
+             SET status = 'confirmed' 
+             WHERE trip_id = ? 
+             AND seat_number IN (?) 
+             AND status = 'pending'`,
+            [tripId, seats]
         );
 
         if (updateResult.affectedRows > 0) {
-            console.log(`✅ THÀNH CÔNG: Ghế ${seatNumber} chuyến ${tripId} đã được duyệt!`);
-            return res.status(200).json({ success: true });
+            console.log(`✅ THÀNH CÔNG: Đã xác nhận ${updateResult.affectedRows} ghế cho chuyến ${tripId}`);
+        } else {
+            console.log("⚠️ Không tìm thấy booking PENDING nào khớp để update.");
         }
 
-        return res.status(200).json({ success: false, message: 'Update thất bại' });
+        return res.status(200).json({ success: true });
 
     } catch (err) {
-        console.error("❌ Lỗi hệ thống Webhook:", err.message);
+        console.error("❌ Lỗi Webhook:", err.message);
         return res.status(500).json({ success: false });
     }
 };
