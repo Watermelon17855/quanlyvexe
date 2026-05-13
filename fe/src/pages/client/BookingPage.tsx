@@ -102,7 +102,9 @@ const BookingPage = () => {
                 {/* SƠ ĐỒ GHẾ */}
                 <div style={{ flex: 1 }}>
                     {selectedTripId ? (
-                        <SeatMap tripId={selectedTripId} onBookingSuccess={fetchTrips} />
+                        <SeatMap tripId={selectedTripId} onBookingSuccess={fetchTrips}
+                            tripData={trips.find(t => t.id === selectedTripId)}
+                        />
                     ) : !loading && trips.length > 0 ? (
                         <div style={{
                             textAlign: 'center', padding: '100px 20px', border: '1px dashed #444',
