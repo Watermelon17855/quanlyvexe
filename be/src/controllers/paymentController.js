@@ -9,8 +9,7 @@ exports.sepayWebhook = async (req, res) => {
         const amount = data.transferAmount;
 
         // Regex lấy mã chuyến và số ghế
-        const match = content.toUpperCase().match(/VEXE\s+(\d+)\s+([A-B]\d+)/);
-
+        const match = content.toUpperCase().match(/VEXE\s*(\d+)\s*([A-B]\d+)/);
         if (match) {
             const tripId = match[1];
             const seatNumber = match[2];
