@@ -14,8 +14,7 @@ const CheckoutPage = () => {
 
     // Cú pháp nội dung chuyển khoản để SePay Webhook quét được
     // Ví dụ: VEXE98A01 (Viết liền không dấu để tránh lỗi Regex ở BE)
-    const orderCode = `VEXE${tripId}${seats?.join('')}`;
-
+    const orderCode = `VEXE${tripId}${seats[0]}`;
     const handleConfirmBooking = async () => {
         if (!customer.name || !customer.phone) return alert("Nhập đủ thông tin ông ơi!");
 
