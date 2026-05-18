@@ -85,3 +85,12 @@ exports.transferBooking = async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 };
+
+exports.checkStatus = async (req, res) => {
+    const { trip_id, seat_number } = req.query;
+    const [rows] = await pool.query(
+        'SELECT status FROM bookings WHERE trip_id = ? AND seat_number = ?',
+        [trip_id, seat_number]
+    );
+    res.json({ confirmed: rows[0]?.status === 'confirmed' });
+};
